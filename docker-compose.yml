@@ -8,7 +8,7 @@ services:
     environment:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=FALSE
-
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["https://chroma-ui.vercel.app"]
   app:
     build: .
     volumes:
@@ -22,3 +22,18 @@ services:
     depends_on:
       - chroma
 
+  chatbot:
+    build: .
+    command: streamlit run app/chat.py --server.port 8501 --server.address 0.0.0.0 --server.fileWatcherType none
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./app:/app/app
+      - ./src:/app/src
+      - ./data:/app/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CHROMA_HOST=chroma
+    depends_on:
+      - chroma
+    restart: on-failure

@@ -4,3 +4,4 @@ __pycache__/
 sede_download/
 chroma_data/
 ingest/
+data/

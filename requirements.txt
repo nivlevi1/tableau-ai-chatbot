@@ -10,3 +10,5 @@ llama-index-readers-file
 chromadb
 openai
 pypdf
+streamlit
+sentence-transformers
