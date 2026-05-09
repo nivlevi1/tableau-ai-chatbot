@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - C:/chroma_data:/data
+      - ./chroma_data:/data
     environment:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=FALSE
@@ -15,6 +15,7 @@ services:
       - ./scraper:/app/scraper
       - ./ingest:/app/ingest
       - ./src:/app/src
+      - ./check.py:/app/check.py
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - CHROMA_HOST=chroma
