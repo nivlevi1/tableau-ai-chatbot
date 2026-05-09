@@ -1,0 +1,12 @@
+requests
+pandas
+selenium
+beautifulsoup4
+lxml
+llama-index-core
+llama-index-vector-stores-chroma
+llama-index-embeddings-openai
+llama-index-readers-file
+chromadb
+openai
+pypdf

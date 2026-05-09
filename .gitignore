@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+sede_download/
+chroma_data/
+ingest/

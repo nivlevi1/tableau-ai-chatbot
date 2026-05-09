@@ -1,0 +1,23 @@
+services:
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - C:/chroma_data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+
+  app:
+    build: .
+    volumes:
+      - ./scraper:/app/scraper
+      - ./ingest:/app/ingest
+      - ./src:/app/src
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CHROMA_HOST=chroma
+    depends_on:
+      - chroma
+
