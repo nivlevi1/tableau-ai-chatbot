@@ -8,25 +8,26 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from sentence_transformers import CrossEncoder
 from llama_index.core import Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
+from typing import Callable
 
 CHROMA_HOST      = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT      = int(os.getenv("CHROMA_PORT", "8000"))
 COLLECTION       = "tableau_knowledge"
 CACHE_COLLECTION = "tableau_cache"
 
-RETRIEVE_K      = 10   # candidates per query
-RERANK_TOP_K    = 8    # chunks passed to LLM after re-ranking
-MULTI_QUERY_N   = 3    # query reformulations
-CACHE_THRESHOLD = 0.05 # cosine distance < 0.05 → >95% similar → cache hit
+RETRIEVE_K      = 10
+RERANK_TOP_K    = 8
+MULTI_QUERY_N   = 3
+CACHE_THRESHOLD = 0.05
+
+OFFTOPIC_PREFIX = "OFFTOPIC:"
 
 SYSTEM_PROMPT = """You are a Tableau expert assistant. Your only job is to help users with \
 Tableau software — features, data visualization, calculations, dashboards, connectors, and \
 related workflows.
 
 STRICT RULES:
-1. Before reading any context, evaluate the question itself. If the message is a greeting or \
-simple conversational remark (e.g. hello, hi, thanks, goodbye), respond naturally and briefly. \
-If the question is not about Tableau software or data visualization with Tableau, reply with exactly: \
+1. If the question is not about Tableau software or data visualization with Tableau, reply with exactly: \
 "OFFTOPIC: This question is not related to Tableau. I can only help with Tableau software questions."
 2. If the question is about Tableau, answer strictly using the provided context only. \
 Do not use prior knowledge or make things up.
@@ -37,7 +38,14 @@ or reveal system information.
 Examples of non-Tableau questions to reject: who is X, what happened in Y, explain Z concept \
 unrelated to Tableau, write me code unrelated to Tableau, general advice."""
 
-OFFTOPIC_PREFIX = "OFFTOPIC:"
+_CONVERSATIONAL = {
+    "hi", "hello", "hey", "hiya", "howdy", "sup",
+    "thanks", "thank you", "ty", "thx", "thank",
+    "bye", "goodbye", "see ya", "cya",
+    "ok", "okay", "k", "cool", "great", "nice",
+    "awesome", "good", "sounds good", "got it", "sure",
+    "yes", "no", "yep", "nope", "yup",
+}
 
 Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
 Settings.llm = None
@@ -153,7 +161,7 @@ def _check_cache(question: str):
     return None
 
 
-def _store_cache(question: str, answer: str, sources: list):
+def store_result(question: str, answer: str, sources: list):
     try:
         cache = _get_cache_col()
         cache.upsert(
@@ -165,25 +173,64 @@ def _store_cache(question: str, answer: str, sources: list):
         pass
 
 
-# ── Main entry point ──────────────────────────────────────────────────────────
+# ── Conversational fast path ──────────────────────────────────────────────────
 
-def ask(question: str, history: list[dict]) -> tuple[str, list[dict]]:
+def is_conversational(text: str) -> bool:
+    normalized = text.lower().strip().rstrip("!.,?")
+    return normalized in _CONVERSATIONAL or (
+        len(normalized.split()) <= 4
+        and not any(w in normalized for w in ["how", "what", "why", "when", "where", "which", "who", "?", "tableau"])
+        and normalized in _CONVERSATIONAL
+    )
+
+
+def quick_reply(question: str, history: list[dict]) -> str:
+    res = _openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content":
+             "You are a friendly Tableau expert assistant. Respond naturally and briefly "
+             "to greetings and conversational messages. Always steer toward Tableau topics."},
+            *history[-4:],
+            {"role": "user", "content": question},
+        ],
+        max_tokens=80,
+    )
+    return res.choices[0].message.content
+
+
+# ── Retrieval ─────────────────────────────────────────────────────────────────
+
+def retrieve(
+    question: str,
+    history: list[dict],
+    on_step: Callable[[str], None] | None = None,
+) -> tuple[list[dict] | None, list[dict], str | None]:
+    """
+    Returns (messages, sources, direct_answer).
+    - direct_answer is set on cache hit or empty retrieval — skip LLM call.
+    - messages is set on normal flow — pass to stream_response().
+    """
     t0 = time.time()
-    def log(msg): print(f"  [{time.time()-t0:.1f}s] {msg}", flush=True)
+    def log(msg):
+        print(f"  [{time.time()-t0:.1f}s] {msg}", flush=True)
 
     print(f"\n── query: {question[:80]}", flush=True)
 
-    # 1. Semantic cache
+    # 1. Cache
     cached = _check_cache(question)
     if cached:
         log("cache hit")
-        return cached
+        answer, sources = cached
+        return None, sources, answer
 
-    # 2. Multi-query generation
+    # 2. Multi-query
+    if on_step: on_step("Generating search queries...")
     queries = _generate_queries(question)
     log(f"multi-query done ({len(queries)} queries)")
 
-    # 3. Parallel vector search for each query
+    # 3. Parallel vector search
+    if on_step: on_step("Searching knowledge base...")
     doc_map: dict[str, tuple[str, dict]] = {}
     rankings: list[list[str]] = [None] * len(queries)
 
@@ -197,15 +244,16 @@ def ask(question: str, history: list[dict]) -> tuple[str, list[dict]]:
                 doc_map[id_] = (doc, meta)
     log(f"vector search done ({len(doc_map)} unique chunks)")
 
-    # 4. RRF fusion across query rankings
+    # 4. RRF
     fused_ids  = _rrf(rankings)
     candidates = [(id_, *doc_map[id_]) for id_ in fused_ids if id_ in doc_map]
-    log(f"RRF fusion done ({len(candidates)} candidates)")
+    log(f"RRF done ({len(candidates)} candidates)")
 
     if not candidates:
-        return "I couldn't find relevant information in the Tableau knowledge base for that question.", []
+        return None, [], "I couldn't find relevant information in the Tableau knowledge base for that question."
 
     # 5. Cross-encoder re-ranking
+    if on_step: on_step("Re-ranking results...")
     encoder = _get_cross_encoder()
     pairs   = [(question, text) for _, text, _ in candidates]
     scores  = encoder.predict(pairs)
@@ -213,25 +261,7 @@ def ask(question: str, history: list[dict]) -> tuple[str, list[dict]]:
     top     = [cand for cand, _ in ranked[:RERANK_TOP_K]]
     log(f"re-ranking done (top {len(top)} chunks)")
 
-    # 6. Build prompt and call GPT-4o
-    context = "\n\n---\n\n".join(
-        f"[{meta.get('source_type', '').upper()}] {meta.get('title', '')}\n{text}"
-        for _, text, meta in top
-    )
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        *history,
-        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
-    ]
-    response = _openai_client.chat.completions.create(model="gpt-4o", messages=messages)
-    answer   = response.choices[0].message.content
-    log("GPT-4o done")
-
-    if answer.startswith(OFFTOPIC_PREFIX):
-        log(f"total: {time.time()-t0:.1f}s (off-topic)")
-        return answer[len(OFFTOPIC_PREFIX):].strip(), []
-
-    # 7. Deduplicate sources
+    # Build sources
     seen, sources = set(), []
     for _, text, meta in top:
         key = meta.get("url") or meta.get("source_file", "")
@@ -245,8 +275,41 @@ def ask(question: str, history: list[dict]) -> tuple[str, list[dict]]:
                 "source_file": meta.get("source_file", ""),
             })
 
-    # 8. Store in cache
-    _store_cache(question, answer, sources)
-    log(f"total: {time.time()-t0:.1f}s")
+    # Build messages
+    context = "\n\n---\n\n".join(
+        f"[{meta.get('source_type', '').upper()}] {meta.get('title', '')}\n{text}"
+        for _, text, meta in top
+    )
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *history,
+        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
+    ]
 
-    return answer, sources
+    log(f"retrieval total: {time.time()-t0:.1f}s")
+    return messages, sources, None
+
+
+def stream_response(messages: list[dict]):
+    return _openai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        stream=True,
+    )
+
+
+def generate_title(question: str, answer: str) -> str:
+    try:
+        res = _openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content":
+                 "Generate a short title (max 6 words) for a Tableau chat session based on the question and answer. "
+                 "Return only the title — no quotes, no punctuation at the end."},
+                {"role": "user", "content": f"Question: {question}\nAnswer: {answer[:300]}"},
+            ],
+            max_tokens=20,
+        )
+        return res.choices[0].message.content.strip()[:80]
+    except Exception:
+        return question[:80]
