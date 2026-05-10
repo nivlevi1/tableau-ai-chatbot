@@ -20,21 +20,15 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ── Reset & Base ─────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
     -webkit-font-smoothing: antialiased !important;
     height: 100% !important;
-    /* No overflow:hidden here — it breaks position:fixed (sidebar toggle) */
 }
 
-/* Lock scroll at app-shell level only, so position:fixed still works */
-.stApp {
-    height: 100vh !important;
-    overflow: hidden !important;
-}
+.stApp { height: 100vh !important; overflow: hidden !important; }
 
 [data-testid="stAppViewContainer"] {
     display: flex !important;
@@ -51,7 +45,6 @@ html, body {
     overflow: hidden !important;
 }
 
-/* Only the message list scrolls internally */
 [data-testid="stMain"] .main {
     flex: 1 !important;
     overflow-y: auto !important;
@@ -60,18 +53,15 @@ html, body {
     padding-bottom: 1rem !important;
 }
 
-/* Sidebar scrolls internally, never the page */
 [data-testid="stSidebar"] {
     height: 100vh !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
 }
 
-/* Hide Streamlit chrome */
 [data-testid="stHeader"] { background: transparent !important; border: none !important; }
 footer, #MainMenu { display: none !important; }
 
-/* Hide toolbar inner buttons but keep the sidebar toggle accessible */
 [data-testid="stToolbar"] > * { visibility: hidden !important; }
 [data-testid="stToolbar"] { background: transparent !important; }
 [data-testid="collapsedControl"] {
@@ -83,7 +73,6 @@ footer, #MainMenu { display: none !important; }
     z-index: 99999 !important;
 }
 
-/* ── Main content area ────────────────────────── */
 .block-container {
     max-width: 760px !important;
     padding: 2rem 1.75rem 8rem !important;
@@ -109,32 +98,11 @@ footer, #MainMenu { display: none !important; }
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] small { color: #8B949E !important; }
 
-/* New Chat button */
-[data-testid="stSidebar"] .stButton:first-of-type > button {
-    background: linear-gradient(135deg, #1D4ED8, #2563EB, #3B82F6) !important;
-    color: #fff !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-family: 'Inter', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 0.875rem !important;
-    letter-spacing: 0.015em !important;
-    padding: 0.625rem 1rem !important;
-    box-shadow: 0 2px 12px rgba(37,99,235,.4) !important;
-    transition: all .2s cubic-bezier(.4,0,.2,1) !important;
-}
-[data-testid="stSidebar"] .stButton:first-of-type > button:hover {
-    background: linear-gradient(135deg, #1E3A8A, #1D4ED8, #2563EB) !important;
-    box-shadow: 0 4px 20px rgba(37,99,235,.55) !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Session list buttons */
 [data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
     border: none !important;
     border-radius: 8px !important;
-    color: #8B949E !important;
+    color: #C9D1D9 !important;
     font-family: 'Inter', sans-serif !important;
     font-size: 0.8125rem !important;
     text-align: left !important;
@@ -146,16 +114,37 @@ footer, #MainMenu { display: none !important; }
 }
 [data-testid="stSidebar"] .stButton > button:hover {
     background: #161B22 !important;
-    color: #C9D1D9 !important;
+    color: #FFFFFF !important;
 }
 
-/* Delete button */
-[data-testid="stSidebar"] [data-testid="column"]:last-child .stButton > button {
+[data-testid="stSidebar"] .st-key-new_chat_btn button {
+    background: linear-gradient(135deg, #1D4ED8, #2563EB, #3B82F6) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 0.875rem !important;
+    letter-spacing: 0.015em !important;
+    padding: 0.625rem 1rem !important;
+    text-align: center !important;
+    box-shadow: 0 2px 12px rgba(37,99,235,.4) !important;
+    transition: all .2s cubic-bezier(.4,0,.2,1) !important;
+}
+[data-testid="stSidebar"] .st-key-new_chat_btn button:hover {
+    background: linear-gradient(135deg, #1E3A8A, #1D4ED8, #2563EB) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 20px rgba(37,99,235,.55) !important;
+    transform: translateY(-1px) !important;
+}
+
+[data-testid="stSidebar"] [class*="st-key-del_"] button {
     color: #484F58 !important;
     font-size: .8rem !important;
     padding: .4rem .375rem !important;
+    text-align: center !important;
 }
-[data-testid="stSidebar"] [data-testid="column"]:last-child .stButton > button:hover {
+[data-testid="stSidebar"] [class*="st-key-del_"] button:hover {
     background: rgba(248,81,73,.12) !important;
     color: #F85149 !important;
 }
@@ -169,7 +158,6 @@ footer, #MainMenu { display: none !important; }
     align-items: flex-start !important;
 }
 
-/* AI avatar */
 [data-testid="chatAvatarIcon-assistant"] {
     background: linear-gradient(135deg, #1a1f2e, #252d3d) !important;
     border: 1.5px solid rgba(255,255,255,.08) !important;
@@ -180,7 +168,6 @@ footer, #MainMenu { display: none !important; }
 [data-testid="chatAvatarIcon-assistant"] svg,
 [data-testid="chatAvatarIcon-assistant"] p { color: #3B82F6 !important; fill: #3B82F6 !important; }
 
-/* User avatar */
 [data-testid="chatAvatarIcon-user"] {
     background: linear-gradient(135deg, #2563EB, #7C3AED) !important;
     border: none !important;
@@ -191,7 +178,6 @@ footer, #MainMenu { display: none !important; }
 [data-testid="chatAvatarIcon-user"] svg,
 [data-testid="chatAvatarIcon-user"] p { color: #fff !important; fill: #fff !important; }
 
-/* Bubble base */
 [data-testid="stChatMessageContent"] {
     border-radius: 4px 16px 16px 16px !important;
     padding: .875rem 1.0625rem !important;
@@ -202,7 +188,6 @@ footer, #MainMenu { display: none !important; }
     box-shadow: 0 1px 6px rgba(0,0,0,.07) !important;
 }
 
-/* AI bubble */
 [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) [data-testid="stChatMessageContent"] {
     background: var(--secondary-background-color) !important;
     border: 1px solid rgba(0,0,0,.07) !important;
@@ -210,7 +195,6 @@ footer, #MainMenu { display: none !important; }
     border-radius: 4px 16px 16px 16px !important;
 }
 
-/* User bubble — right-aligned */
 [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
     flex-direction: row-reverse !important;
 }
@@ -225,7 +209,6 @@ footer, #MainMenu { display: none !important; }
     color: #fff !important;
 }
 
-/* Code blocks */
 [data-testid="stChatMessageContent"] pre {
     background: #0D1117 !important;
     border: 1px solid rgba(255,255,255,.08) !important;
@@ -326,7 +309,6 @@ footer, #MainMenu { display: none !important; }
 }
 [data-testid="stExpander"] .stExpanderDetails { padding: .5rem !important; }
 
-/* ── Scrollbar ────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); border-radius: 99px; }
@@ -364,7 +346,7 @@ footer, #MainMenu { display: none !important; }
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .08em;
-    color: #484F58;
+    color: #8B949E;
     padding: .875rem .5rem .3rem;
 }
 
@@ -553,11 +535,13 @@ with st.sidebar:
                 unsafe_allow_html=True)
 
     sessions = db.get_sessions()
+    print(f"[sidebar] db.get_sessions() returned {len(sessions)} session(s)", flush=True)
+
     if not sessions:
         st.markdown("""
         <div style="text-align:center;padding:1.5rem .5rem;font-family:'Inter',sans-serif;">
             <div style="font-size:1.5rem;margin-bottom:.5rem;opacity:.35;">💬</div>
-            <div style="font-size:.8125rem;color:#484F58;line-height:1.6;">
+            <div style="font-size:.8125rem;color:#8B949E;line-height:1.6;">
                 No conversations yet.<br>Start a new chat above.
             </div>
         </div>""", unsafe_allow_html=True)
@@ -585,9 +569,16 @@ with st.sidebar:
                         st.rerun()
 
 
+# ── Resolve prompt FIRST so we know whether to show welcome ────────────────────
+prompt = st.chat_input("Ask me anything about Tableau…")
+
+if not prompt and "pending_question" in st.session_state:
+    prompt = st.session_state.pop("pending_question")
+
+
 # ── Main area ──────────────────────────────────────────────────────────────────
-if not st.session_state.messages:
-    # Welcome / empty state
+# Welcome only when there are no messages AND no incoming prompt this run.
+if not st.session_state.messages and not prompt:
     st.markdown("""
     <div style="text-align:center;padding:3.5rem 0 2rem;user-select:none;">
         <div style="display:inline-flex;align-items:center;justify-content:center;
@@ -619,19 +610,15 @@ if not st.session_state.messages:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-else:
+elif st.session_state.messages:
     _render_messages(st.session_state.messages)
 
 
-# ── Input ──────────────────────────────────────────────────────────────────────
-prompt = st.chat_input("Ask me anything about Tableau…")
-
-if not prompt and "pending_question" in st.session_state:
-    prompt = st.session_state.pop("pending_question")
-
+# ── Process prompt ─────────────────────────────────────────────────────────────
 if prompt:
     if st.session_state.session_id is None:
         sid = db.create_session(prompt)
+        print(f"[create_session] created sid={sid} for prompt={prompt!r}", flush=True)
         st.session_state.session_id = sid
     else:
         sid = st.session_state.session_id
