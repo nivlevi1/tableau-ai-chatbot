@@ -5,3 +5,6 @@ sede_download/
 chroma_data/
 ingest/
 data/
+src/
+data loading/
+.claude/
